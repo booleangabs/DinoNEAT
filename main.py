@@ -1,6 +1,7 @@
 import pygame
-import os
+import os, sys
 import random
+import math
 
 from chrome_dino_neat.constants import (
     SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN,
@@ -9,6 +10,9 @@ from chrome_dino_neat.constants import (
     CLOUD, BG
 )
 from chrome_dino_neat.dinosaur import Dinosaur
+
+import neat
+import pickle
 
 pygame.init()
 
@@ -74,12 +78,27 @@ class Bird(Obstacle):
         SCREEN.blit(self.image[self.index//5], self.rect)
         self.index += 1
 
+def sigmoid(z):
+    return 1 / (1 + math.exp(-z))
 
 def main():
     global game_speed, x_pos_bg, y_pos_bg, points, obstacles
     run = True
     clock = pygame.time.Clock()
-    player = Dinosaur()
+    player = Dinosaur(draw_name=True)
+    player.color = (0, 0, 255)
+    ai = Dinosaur("ai", True)
+    ai.color = (255, 0, 0)
+    ai.name_offset = -25
+    genome = pickle.load(open("best_il.pkl", "rb"))
+    config = neat.config.Config(
+        neat.DefaultGenome,
+        neat.DefaultReproduction,
+        neat.DefaultSpeciesSet,
+        neat.DefaultStagnation,
+        "config.txt"
+    )
+    net = neat.nn.FeedForwardNetwork.create(genome, config)
     clouds = [Cloud() for i in range(5)]
     game_speed = 20
     x_pos_bg = 0
@@ -87,12 +106,11 @@ def main():
     points = 0
     font = pygame.font.Font('assets/Grand9K Pixel.ttf', 20)
     obstacles = []
-    death_count = 0
 
     def score():
         global points, game_speed
         points += 1
-        if points % 100 == 0:
+        if points % 50 == 0:
             game_speed += 1
 
         text = font.render("Points: " + str(points), True, (0, 0, 0))
@@ -123,12 +141,11 @@ def main():
         for c in clouds:
             c.draw(SCREEN)
             c.update()
-
-        score()
-
+        
         player.update(userInput)
         player.draw(SCREEN)
-        
+
+        score()
 
         if len(obstacles) == 0:
             if random.randint(0, 2) == 0:
@@ -137,14 +154,32 @@ def main():
                 obstacles.append(LargeCactus(LARGE_CACTUS))
             elif random.randint(0, 2) == 2:
                 obstacles.append(Bird(BIRD))
+                
+        if len(obstacles) > 0:
+            output = net.activate(((obstacles[0].rect.x - (ai.rect.x + ai.rect.width)) / SCREEN_WIDTH,
+                                    obstacles[0].rect.y / SCREEN_HEIGHT,
+                                    obstacles[0].rect.height / SCREEN_HEIGHT))
+            output = sigmoid(output[0])
+            if output > 0.5 and ai.dino_run:
+                ai.dino_jump = True
+                ai.dino_run = False
+        
+        ai.update2()
+        ai.draw(SCREEN)
 
         for obstacle in obstacles:
             obstacle.draw(SCREEN)
             obstacle.update()
-            if player.dino_rect.colliderect(obstacle.rect):
-                pygame.time.delay(2000)
-                death_count += 1
-                main()
+            if player.rect.colliderect(obstacle.rect):
+                print("Player lost")
+                pygame.time.delay(3000)
+                sys.exit()
+            elif ai.rect.colliderect(obstacle.rect):
+                print("AI lost")
+                pygame.time.delay(3000)
+                sys.exit()
+
+        
 
         clock.tick(30)
         pygame.display.update()

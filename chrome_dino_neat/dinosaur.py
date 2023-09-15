@@ -8,7 +8,10 @@ class Dinosaur:
     Y_POS_DUCK = 340
     JUMP_VEL = 8.5
 
-    def __init__(self):
+    def __init__(self, name="player", draw_name=False):
+        self.name = name
+        self.draw_name = draw_name
+        self.name_offset = 5
         self.duck_img = DUCKING
         self.run_img = RUNNING
         self.jump_img = JUMPING
@@ -87,3 +90,10 @@ class Dinosaur:
     def draw(self, SCREEN):
         SCREEN.blit(self.image, (self.rect.x, self.rect.y))
         pygame.draw.rect(SCREEN, self.color, self.rect, 2)
+        if self.draw_name:
+            font = pygame.font.Font('assets/Grand9K Pixel.ttf', 20)
+            text = font.render(self.name, True, self.color)
+            textRect = text.get_rect()
+            textRect.center = (self.rect.x + int(self.rect.width // 2), int(self.rect.y - self.rect.height - self.name_offset))
+            SCREEN.blit(text, textRect)
+        
