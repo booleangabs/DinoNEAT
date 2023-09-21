@@ -89,10 +89,12 @@ def sigmoid(z):
     return 1 / (1 + math.exp(-z))
 
 GENS = 30
+generation_scores = []
 def eval_genomes(genomes, config):
-    global game_speed, x_pos_bg, y_pos_bg, obstacles, dinosaurs, ge, nets, points, generation_scores, pop
+    global game_speed, x_pos_bg, y_pos_bg, obstacles, dinosaurs, ge, nets, points, generation_scores, pop, scores
     clock = pygame.time.Clock()
     points = 0
+    generation_scores = []
 
     obstacles = []
     dinosaurs = []
@@ -163,6 +165,7 @@ def eval_genomes(genomes, config):
                                        obstacle.rect.height / SCREEN_HEIGHT))
             output = np.clip(0.5 * output[0] + 0.5, 0, 1)
             if output > 0.5 and dinosaur.dino_run:
+                dinosaur.n_jumps += 1
                 dinosaur.dino_jump = True
                 dinosaur.dino_run = False
             dinosaur.update2()
@@ -172,8 +175,9 @@ def eval_genomes(genomes, config):
             obstacle.draw(SCREEN)
             obstacle.update()
             for i, dinosaur in enumerate(dinosaurs):
-                ge[i].fitness = points
+                ge[i].fitness = points * (1 - min(dinosaur.n_jumps / 120, 1))
                 if dinosaur.rect.colliderect(obstacle.rect):
+                    generation_scores.append(points)
                     dinosaurs.pop(i)
                     ge.pop(i)
                     nets.pop(i)
@@ -185,7 +189,7 @@ def eval_genomes(genomes, config):
         clock.tick(30)
         pygame.display.update()
 
-best_fitnesses = []
+
 # Setup the NEAT Neural Network
 def run(config_path, iteration):
     global pop, fitnesses
@@ -205,18 +209,19 @@ def run(config_path, iteration):
     best = pop.run(eval_genomes, GENS)
     
     print('\nBest genome:\n{!s}'.format(best))
-    best_fitnesses.append(best.fitness)
     
-    pickle.dump(best, open(f"nets/simple/{iteration}.pkl", "wb"))
+    pickle.dump(best, open(f"nets/simple_jump/{iteration}.pkl", "wb"))
     
-    visualize.plot_stats(stats, ylog=False, view=False, filename=f"stats/simple/{iteration}.svg")
+    visualize.plot_stats(stats, ylog=False, view=False, filename=f"stats/simple_jump/{iteration}.svg")
     node_names = {-1: 'x_diff', -2: 'object_y', -3: 'object_height', 0: 'jump'}
-    visualize.draw_net(config, best, node_names=node_names, filename=f"graphs/simple/{iteration}")
+    visualize.draw_net(config, best, node_names=node_names, filename=f"graphs/simple_jump/{iteration}")
     
 
 if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'config.txt')
+    high_scores = []
     for it in range(int(sys.argv[1])):
         run(config_path, it)
-    pickle.dump(best_fitnesses, open(f"stats/simple/high_scores.pkl", "wb"))
+        high_scores.append(max(generation_scores))
+    pickle.dump(high_scores, open(f"stats/simple_jump/high_scores.pkl", "wb"))

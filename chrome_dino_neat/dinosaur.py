@@ -15,6 +15,7 @@ class Dinosaur:
         self.duck_img = DUCKING
         self.run_img = RUNNING
         self.jump_img = JUMPING
+        self.n_jumps = 0
 
         self.dino_duck = False
         self.dino_run = True
