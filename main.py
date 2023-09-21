@@ -81,7 +81,7 @@ class Bird(Obstacle):
 def sigmoid(z):
     return 1 / (1 + math.exp(-z))
 
-def main():
+def main(name):
     global game_speed, x_pos_bg, y_pos_bg, points, obstacles
     run = True
     clock = pygame.time.Clock()
@@ -90,7 +90,7 @@ def main():
     ai = Dinosaur("ai", True)
     ai.color = (255, 0, 0)
     ai.name_offset = -25
-    genome = pickle.load(open("best_il.pkl", "rb"))
+    genome = pickle.load(open(f"nets/{name}.pkl", "rb"))
     config = neat.config.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,
@@ -105,6 +105,7 @@ def main():
     y_pos_bg = 380
     points = 0
     font = pygame.font.Font('assets/Grand9K Pixel.ttf', 20)
+    big_font = pygame.font.Font('assets/Grand9K Pixel.ttf', 50)
     obstacles = []
 
     def score():
@@ -171,17 +172,23 @@ def main():
             obstacle.draw(SCREEN)
             obstacle.update()
             if player.rect.colliderect(obstacle.rect):
-                print("Player lost")
-                pygame.time.delay(3000)
+                text = big_font.render("Player lost", True, (255, 0, 0))
+                textRect = text.get_rect()
+                textRect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2) 
+                SCREEN.blit(text, textRect)
+                pygame.display.update()
+                pygame.time.delay(5000)
                 sys.exit()
             elif ai.rect.colliderect(obstacle.rect):
-                print("AI lost")
-                pygame.time.delay(3000)
+                text = big_font.render("AI lost", True, (0, 0, 255))
+                textRect = text.get_rect()
+                textRect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+                SCREEN.blit(text, textRect)
+                pygame.display.update()
+                pygame.time.delay(5000)
                 sys.exit()
-
-        
 
         clock.tick(30)
         pygame.display.update()
 
-main()
+main(sys.argv[1])

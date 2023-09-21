@@ -88,7 +88,7 @@ class Bird(Obstacle):
 def sigmoid(z):
     return 1 / (1 + math.exp(-z))
 
-GENS = 50
+GENS = 2
 def eval_genomes(genomes, config):
     global game_speed, x_pos_bg, y_pos_bg, obstacles, dinosaurs, ge, nets, points, generation_scores, pop
     clock = pygame.time.Clock()
@@ -144,10 +144,6 @@ def eval_genomes(genomes, config):
 
         SCREEN.fill((255, 255, 255))
         
-        for dinosaur in dinosaurs:
-            dinosaur.update2()
-            dinosaur.draw(SCREEN)
-
         if len(dinosaurs) == 0:
             break
 
@@ -159,26 +155,28 @@ def eval_genomes(genomes, config):
                 obstacles.append(LargeCactus(LARGE_CACTUS))
             else:
                 obstacles.append(Bird(BIRD))
+                
+        obstacle = obstacles[0]
+        for i, dinosaur in enumerate(dinosaurs):
+            output = nets[i].activate(((obstacle.rect.x - (dinosaur.rect.x + dinosaur.rect.width)) / SCREEN_WIDTH,
+                                       obstacle.rect.y / SCREEN_HEIGHT,
+                                       obstacle.rect.height / SCREEN_HEIGHT))
+            output = np.clip(0.5 * output[0] + 0.5, 0, 1)
+            if output > 0.5 and dinosaur.dino_run:
+                dinosaur.dino_jump = True
+                dinosaur.dino_run = False
+            dinosaur.update2()
+            dinosaur.draw(SCREEN)
 
         for obstacle in obstacles:
             obstacle.draw(SCREEN)
             obstacle.update()
             for i, dinosaur in enumerate(dinosaurs):
-                
                 ge[i].fitness = points
                 if dinosaur.rect.colliderect(obstacle.rect):
                     dinosaurs.pop(i)
                     ge.pop(i)
                     nets.pop(i)
-
-        for i, dinosaur in enumerate(dinosaurs):
-            output = nets[i].activate(((obstacle.rect.x - (dinosaur.rect.x + dinosaur.rect.width)) / SCREEN_WIDTH,
-                                       obstacle.rect.y / SCREEN_HEIGHT,
-                                       obstacle.rect.height / SCREEN_HEIGHT))
-            output = sigmoid(output[0])
-            if output > 0.5 and dinosaur.dino_run:
-                dinosaur.dino_jump = True
-                dinosaur.dino_run = False
                 
         statistics()
         score()
@@ -189,7 +187,7 @@ def eval_genomes(genomes, config):
 
 
 # Setup the NEAT Neural Network
-def run(config_path):
+def run(config_path, name, iteration):
     global pop
     config = neat.config.Config(
         neat.DefaultGenome,
@@ -203,20 +201,21 @@ def run(config_path):
     pop.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     pop.add_reporter(stats)
-    pop.add_reporter(neat.Checkpointer(5))
-    pygame.time.delay(5000)
+    pygame.time.delay(2000)
     best = pop.run(eval_genomes, GENS)
     
     print('\nBest genome:\n{!s}'.format(best))
     
-    pickle.dump(best, open("best.pkl", "wb"))
+    pickle.dump(best, open(f"nets/{name}/{iteration}.pkl", "wb"))
     
-    visualize.plot_stats(stats, ylog=False, view=True)
+    visualize.plot_stats(stats, ylog=False, view=False, filename=f"stats/{name}/{iteration}.svg")
     node_names = {-1: 'x_diff', -2: 'object_y', -3: 'object_height', 0: 'jump'}
-    visualize.draw_net(config, best, node_names=node_names)
+    visualize.draw_net(config, best, node_names=node_names, filename=f"graphs/{name}/{iteration}")
     
 
 if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
+    name = sys.argv[1]
     config_path = os.path.join(local_dir, 'config.txt')
-    run(config_path)
+    for it in range(sys.argv[2]):
+        run(config_path, name, it)
