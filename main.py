@@ -13,6 +13,7 @@ from chrome_dino_neat.dinosaur import Dinosaur
 
 import neat
 import pickle
+import numpy as np
 
 pygame.init()
 
@@ -160,7 +161,7 @@ def main(name):
             output = net.activate(((obstacles[0].rect.x - (ai.rect.x + ai.rect.width)) / SCREEN_WIDTH,
                                     obstacles[0].rect.y / SCREEN_HEIGHT,
                                     obstacles[0].rect.height / SCREEN_HEIGHT))
-            output = sigmoid(output[0])
+            output = np.clip(0.5 * output[0] + 0.5, 0, 1)
             if output > 0.5 and ai.dino_run:
                 ai.dino_jump = True
                 ai.dino_run = False
